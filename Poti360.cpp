@@ -1,15 +1,82 @@
 #include "Poti360.h"
 
+void Poti360::init(){}
 
+void Poti360::init(int pin1, int pin2, uint8_t samples, float valid_min, float valid_max){
+    _pin1 = pin1;
+    _pin2 = pin2;
+    _samples = samples;
+    _valid_min = valid_min;
+    _valid_max = valid_max;
+}
+
+/**
+ * @brief Updates the internal state of the Poti360 object.
+ * @details This function should be called periodically to update the internal state of the Poti360 object.
+ * It will update the angle and velocity of the potentiometer based on the current readings.
+ */
+void Poti360::update(){
+    getPosition();
+}
+
+
+ Poti360::Poti360(){}
+
+
+/**
+ * @brief Constructor for Poti360
+ * @param pin1 The first potentiometer pin
+ * @param pin2 The second potentiometer pin
+ * @param samples The number of samples to take for averaging
+ * @param valid_min The minimum valid voltage for the potentiometer
+ * @param valid_max The maximum valid voltage for the potentiometer
+ */
 Poti360::Poti360(int pin1, int pin2, uint8_t samples, float valid_min, float valid_max){
     _pin1 = pin1;
     _pin2 = pin2;
     _samples = samples;
     _valid_min = valid_min;
     _valid_max = valid_max;
-    // pinMode(pin1, INPUT);
-    // pinMode(pin2, INPUT);
 }
+
+/**
+ * @brief Gets the current angle of the potentiometer in radians.
+ * @details This function returns the current angle of the potentiometer
+ * in radians. The value is normalized to the range of -PI to PI.
+ * @return The current angle of the potentiometer in radians.
+ */
+float Poti360::getSensorAngle(){
+  float pos = getPosition();
+  // Serial2.println(pos);
+  return pos / 180.0 * PI;
+}
+
+/**
+ * @brief Gets the current mechanical angle of the potentiometer in radians.
+ * @details This function returns the current mechanical angle of the potentiometer
+ * in radians. The value is normalized to the range of -PI to PI.
+ * @return The current mechanical angle of the potentiometer in radians.
+ */
+float Poti360::getMechanicalAngle(){
+    return _lastAngle_degree/180.0 * PI;
+}
+
+float Poti360::getAngle(){
+    return _lastAngleAbsolut_degree / 180.0 * PI;
+
+}
+
+double Poti360::getPreciseAngle(){
+  float pos = getPosition();
+  // Serial2.println(pos);
+  return (double) pos / 180.0 * PI;
+}
+
+
+int32_t Poti360::getFullRotations(){
+    return _rotations;
+}
+
 
 /**
  * @brief Gets the current position of the potentiometer in degrees.
@@ -18,10 +85,17 @@ Poti360::Poti360(int pin1, int pin2, uint8_t samples, float valid_min, float val
  * @return The current position of the potentiometer in degrees.
  */
 float Poti360::getPosition() {
-    float _angle = getAngle();
+    float _angle = getAngleInCircle();  // 0–360°
     unsigned long timedelta = micros() - _lastMicros;
-    float timedelta_sec = (float)timedelta / 1000000.0;
+    float timedelta_sec = (float)timedelta / 1e6;
     float delta_angle = 0;
+
+    // --- 1. Überlauf-Logik (vollständige Rotationen erkennen) ---
+    if ((_lastAngle_degree > 300.0f) && (_angle < 60.0f)) {
+        _rotations++;   // Übergang 360° → 0°
+    } else if ((_lastAngle_degree < 60.0f) && (_angle > 300.0f)) {
+        _rotations--;   // Übergang 0° → 360° (rückwärts)
+    }
 
     if (_lastAngle_degree > 260.0 && _angle < 60.0) {
         delta_angle = 360.0 + _angle - _lastAngle_degree;
@@ -35,7 +109,7 @@ float Poti360::getPosition() {
     // Hysterese: Änderung nur bei relevantem Unterschied
     
     float diff = angleDiff(_angle, _lastAngle_degree);
-    Serial.printf("diff:%f\t",diff );
+    // Serial.printf("diff:%f\t",diff );
     if (fabs(diff) > HSYSTERESIS) {
         _lastAngle_degree = _angle;
         _angle = roundValue(_angle);
@@ -46,23 +120,54 @@ float Poti360::getPosition() {
        _lastMicros = micros();
        return _lastAngle_degree;
     }
+}
 
-   
+
+float Poti360::getPositionAbsolute(){
+    float _angle = getAngleInCircle();  // 0–360°
+    unsigned long timedelta = micros() - _lastMicros;
+    float timedelta_sec = (float)timedelta / 1e6;
+    float delta_angle = 0;
+
+    // --- 1. Überlauf-Logik (vollständige Rotationen erkennen) ---
+    if ((_lastAngle_degree > 300.0f) && (_angle < 60.0f)) {
+        _rotations++;   // Übergang 360° → 0°
+    } else if ((_lastAngle_degree < 60.0f) && (_angle > 300.0f)) {
+        _rotations--;   // Übergang 0° → 360° (rückwärts)
+    }
+
+    // --- 2. Delta-Berechnung (wie gehabt) ---
+    if (_lastAngle_degree > 260.0 && _angle < 60.0) {
+        delta_angle = 360.0 + _angle - _lastAngle_degree;
+    } else {
+        delta_angle = _angle - _lastAngle_degree;
+    }
+
+    _velocity = (delta_angle * PI / 180.0f) / timedelta_sec; // rad/s
+    _acceleration = _velocity / timedelta_sec;
+    float absolute_angle_deg = _rotations * 360.0f + _angle;
+    // --- 3. Hysterese ---
+    float diff = angleDiff(_angle, _lastAngle_degree);
+    if (fabs(diff) > HSYSTERESIS) {
+        _lastAngle_degree = _angle;
+        _lastAngleAbsolut_degree = absolute_angle_deg;
+    }
+
+    _lastMicros = micros();
+
+    // --- 4. Rückgabewert: kombinierter Gesamtwinkel (in Grad) ---
     
+    return absolute_angle_deg;
 }
 
-float Poti360::getVelocity(){
-    if(abs(_velocity) <= VELOCITY_TOLERANCE) return 0.0;
-    return roundValue(_velocity);
-}
+// float Poti360::getVelocity(){
+//     // if(abs(_velocity) <= VELOCITY_TOLERANCE) return 0.0;
 
-float Poti360::getAcceleration(){
-    if(abs(_acceleration) <= ACCELERATION_TOLERANCE) return 0.0;
-    return roundValue(_acceleration); // acceleration;
-}
+//     // return roundValue(_velocity);
+// }
 
 
-float Poti360::getAngle() {
+float Poti360::getAngleInCircle() {
 
   float _angle = -1;
   float _angle1 = 0;

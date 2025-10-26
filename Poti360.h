@@ -1,11 +1,11 @@
-#ifndef Poti360_h
-#define Poti360_h
-#include <Arduino.h>
+#pragma once
+
+
+#include "Arduino.h"
+#include <SimpleFOC.h>
 
 #define CROSSPOINT1 135.0
 #define CROSSPOINT2 315.0
-// #define VALID_MIN 0.27
-// #define VALID_MAX 0.86
 #define VALID_TOLERANCE 0.1
 #define VALID_BLEND 0.05
 #define HSYSTERESIS 0.15
@@ -31,7 +31,7 @@
 
   // --- STM32F103 ("Blue Pill") ---
   #elif defined(ARDUINO_ARCH_STM32) || defined(STM32F1xx) || defined(ARDUINO_BLUEPILL_F103C8)
-    #define ADC_MAX 4095.0   // 12-bit
+    #define ADC_MAX 1023.0   // 10-bit
 
   // --- ESP32 ---
   #elif defined(ESP32) || defined(ARDUINO_ARCH_ESP32)
@@ -51,12 +51,24 @@
 
 
 
-class Poti360{
+class Poti360 : public Sensor{
     public:
+        Poti360();
         Poti360(int pin1, int pin2, uint8_t samples, float valid_min, float valid_max);
+
+        void init() override;
+        void init(int pin1, int pin2, uint8_t samples, float valid_min, float valid_max);
+        float getSensorAngle() override;    // not absolute
+        float getMechanicalAngle() override;    //not absolute
+        float getAngle() override;  //absolute
+        /**  get current angular velocity (rad/s) */
+        // float getVelocity() override;
+        double getPreciseAngle() override;  //absolute
+        int32_t getFullRotations() override;
+        void update();
+
         float getPosition();
-        float getVelocity();
-        float getAcceleration();
+        float getPositionAbsolute();
         float calibrateCrosspoint1();  //returns the nearest value to crosspoint1
         float calibrateCrosspoint2();  //returns the nearest value to crosspoint2
 
@@ -67,13 +79,15 @@ class Poti360{
         uint8_t _decimals;
         float _valid_min = 0;
         float _valid_max = 0;
-        float _lastAngle_degree = 0;
-        float _velocity = 0;
-        float _acceleration = 0;
-        unsigned long _lastMicros = 0;
-        float _lastDifference = 1.0;
+        volatile float _lastAngle_degree = 0;
+        volatile float _lastAngleAbsolut_degree = 0;
+        volatile int32_t _rotations = 0;
+        volatile float _velocity = 0;
+        volatile float _acceleration = 0;
+        volatile unsigned long _lastMicros = 0;
+        volatile float _lastDifference = 1.0;
 
-        float getAngle();
+        float getAngleInCircle();
         float angleDiff(float a, float b);
         float roundValue(float value);
         float mapFloat(float x, float xLow, float xHigh, float yLow, float yHigh);
@@ -83,4 +97,3 @@ class Poti360{
 
 
 
-#endif

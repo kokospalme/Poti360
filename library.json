@@ -1,0 +1,40 @@
+{
+  "name": "Poti360",
+  "version": "1.0.0",
+  "description": "Library for handling 360-degree potentiometers with angle, velocity and acceleration calculation.",
+  "keywords": [
+    "potentiometer",
+    "360°",
+    "angle",
+    "velocity",
+    "acceleration",
+    "Arduino",
+    "PlatformIO"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kokospalme/poti360.git"
+  },
+  "authors": [
+    {
+      "name": "Christopher Wüpping",
+      "email": "c.wuepping@gmail.com",
+      "maintainer": true
+    }
+  ],
+  "license": "MGPLv3",
+  "frameworks": [
+    "arduino"
+  ],
+  "platforms": [
+    "espressif32",
+    "stm32",
+    "atmelavr"
+  ],
+  "examples": [
+    "examples/simpleExample.ino"
+  ],
+  "dependencies": {
+    // Optional: falls deine Library andere Libraries benötigt
+  }
+}
