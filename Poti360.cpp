@@ -16,7 +16,8 @@ void Poti360::init(int pin1, int pin2, uint8_t samples, float valid_min, float v
  * It will update the angle and velocity of the potentiometer based on the current readings.
  */
 void Poti360::update(){
-    getPosition();
+  // Serial2.println("Update in poti class!");
+    getPositionAbsolute();
 }
 
 
@@ -46,30 +47,23 @@ Poti360::Poti360(int pin1, int pin2, uint8_t samples, float valid_min, float val
  * @return The current angle of the potentiometer in radians.
  */
 float Poti360::getSensorAngle(){
-  float pos = getPosition();
-  // Serial2.println(pos);
-  return pos / 180.0 * PI;
+  // float pos = getPosition();
+  // Serial2.println(_lastAngle_degree);
+  return _lastAngle_degree * PI / 180.0;
 }
 
-/**
- * @brief Gets the current mechanical angle of the potentiometer in radians.
- * @details This function returns the current mechanical angle of the potentiometer
- * in radians. The value is normalized to the range of -PI to PI.
- * @return The current mechanical angle of the potentiometer in radians.
- */
 float Poti360::getMechanicalAngle(){
-    return _lastAngle_degree/180.0 * PI;
+    return getSensorAngle();
 }
 
 float Poti360::getAngle(){
-    return _lastAngleAbsolut_degree / 180.0 * PI;
+  return _lastAngleAbsolut_degree * PI / 180.0;
 
 }
 
 double Poti360::getPreciseAngle(){
-  float pos = getPosition();
-  // Serial2.println(pos);
-  return (double) pos / 180.0 * PI;
+  double _pos = (double) _lastAngleAbsolut_degree;
+  return (double) _pos / 180.0 * PI;
 }
 
 
@@ -109,15 +103,16 @@ float Poti360::getPosition() {
     // Hysterese: Änderung nur bei relevantem Unterschied
     
     float diff = angleDiff(_angle, _lastAngle_degree);
-    // Serial.printf("diff:%f\t",diff );
+    Serial.printf("diff:%f\t",diff );
     if (fabs(diff) > HSYSTERESIS) {
         _lastAngle_degree = _angle;
         _angle = roundValue(_angle);
         // tue etwas …
          _lastMicros = micros();
+        //  Serial2.println(_lastAngle_degree);
         return _angle;
     }else{
-       _lastMicros = micros();
+      //  Serial2.println(_lastAngle_degree);
        return _lastAngle_degree;
     }
 }
@@ -160,11 +155,11 @@ float Poti360::getPositionAbsolute(){
     return absolute_angle_deg;
 }
 
-// float Poti360::getVelocity(){
-//     // if(abs(_velocity) <= VELOCITY_TOLERANCE) return 0.0;
+float Poti360::getVelocity(){
+    if(abs(_velocity) <= VELOCITY_TOLERANCE) return 0.0;
 
-//     // return roundValue(_velocity);
-// }
+    return roundValue(_velocity);
+}
 
 
 float Poti360::getAngleInCircle() {
@@ -183,10 +178,10 @@ float Poti360::getAngleInCircle() {
   bool useV1 = (v1 >= (_valid_min - VALID_BLEND) && v1 <= (_valid_max + VALID_BLEND));
   bool useV2 = (v2 >= (_valid_min - VALID_BLEND) && v2 <= (_valid_max + VALID_BLEND));
 
-  // if(useV1) Serial.print("*");
-  // Serial.printf("V1:%f\t", v1);
-  // if(useV2) Serial.print("*");
-  // Serial.printf("V2:%f\t", v2);
+  // if(useV1) Serial2.print("*");
+  // Serial2.print("V1:");Serial2.print(v1);Serial2.print("\t");
+  // if(useV2) Serial2.print("*");
+  // Serial2.print("V2:");Serial2.print(v2);Serial2.print("\t");
 
   int _zone = -1;
 
@@ -262,9 +257,12 @@ float Poti360::getAngleInCircle() {
   }
 
   // Serial.printf("%i\t%f\t%f\t",_zone, _angle1, _angle2);
-
+  // Serial2.println(_angle);
   return _angle;
 }
+
+
+
 
 float Poti360::calibrateCrosspoint1(){
   float raw1 = oversample(_pin1, _samples);
@@ -277,7 +275,8 @@ float Poti360::calibrateCrosspoint1(){
   if(_diff < _lastDifference){
     _lastDifference = _diff;
     float _v = (v1 + v2) / 2.0;
-    Serial.printf("V1:%f\tV1:%f\tV:%f\t%f\n", v1, v2, _v, _diff);
+    // Serial2.printf("V1:%f\tV1:%f\tV:%f\t%f\n", v1, v2, _v, _diff);
+    Serial2.print("V1:");Serial2.print(v1, 7);Serial2.print("\tV2:");Serial2.print(v2, 7);Serial2.print("\tV:");Serial2.print(_v,7);Serial2.print("\tDiff:");Serial2.println(_diff, 7);
     return _v;
   }
   return -1;
@@ -294,11 +293,20 @@ float Poti360::calibrateCrosspoint2(){
   if(_diff < _lastDifference){
     _lastDifference = _diff;
     float _v = (v1 + v2) / 2.0;
-    Serial.printf("V1:%f\tV1:%f\tV:%f\t%f\n", v1, v2, _v, _diff);
+    Serial2.print("V1:");Serial2.print(v1, 7);Serial2.print("\tV2:");Serial2.print(v2, 7);Serial2.print("\tV:");Serial2.print(_v,7);Serial2.print("\tDiff:");Serial2.println(_diff, 7);
     return _v;
   }
   return -1;
 }
+
+
+
+int Poti360::needsSearch() {
+    return 0; // default false
+}
+
+
+
 
 /**
  * @brief Rounds a float value to the given number of decimal places.
@@ -341,3 +349,5 @@ float Poti360::angleDiff(float a, float b) {
   while (d < -180.0) d += 360.0;
   return d;
 }
+
+

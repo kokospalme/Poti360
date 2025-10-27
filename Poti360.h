@@ -58,19 +58,20 @@ class Poti360 : public Sensor{
 
         void init() override;
         void init(int pin1, int pin2, uint8_t samples, float valid_min, float valid_max);
+        void update() override;
         float getSensorAngle() override;    // not absolute
         float getMechanicalAngle() override;    //not absolute
         float getAngle() override;  //absolute
-        /**  get current angular velocity (rad/s) */
-        // float getVelocity() override;
         double getPreciseAngle() override;  //absolute
         int32_t getFullRotations() override;
-        void update();
+        float getVelocity() override;      
 
         float getPosition();
         float getPositionAbsolute();
         float calibrateCrosspoint1();  //returns the nearest value to crosspoint1
         float calibrateCrosspoint2();  //returns the nearest value to crosspoint2
+
+        int needsSearch() override;
 
     private:
         int _pin1;
